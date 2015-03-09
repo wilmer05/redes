@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <set>
+#include <netdb.h>
 #include "auxiliares.h"
 
 using namespace std;
@@ -23,14 +24,12 @@ const int kColaSocket = 50;
 
 struct usuario{
   string nombre;
-  int sala;
+  string sala;
   int fd;
   pthread_t id;
   int num;
-  bool exist;
-  usuario(string name,int room, int sock,int n):nombre(name),sala(room),\
+  usuario(string name,string room, int sock,int n):nombre(name),sala(room),\
                                                 fd(sock),num(n){
-    exist=true;
   }
   
 };
@@ -41,18 +40,17 @@ struct sala{
   sala(string s):nombre(s){
     habilitada=true;
   }
+  bool operator<(const sala &ot) const{
+    return nombre<ot.nombre;
+  }
 };
 
 vector<usuario> users;
-vector<sala> rooms;
+set<sala> rooms;
 set<string> usuarios_validos;
 
 char *bitacora;
 
-void salir(const char *mensaje){
-  printf(mensaje);
-  exit(1);
-}
 
 void procesar_comando(string &s1, string &s2, int fd, int num_user){
   
@@ -67,7 +65,7 @@ void *hilo(void *user){
   while(1){
     int bytes = leer_aux(fd);
     vector<string> leido = leer_comando(bytes,fd);
-    if(leido[0]=="exit") 
+    if(leido[0]=="salir") 
       break;
     
     procesar_comando(leido[0],leido[1],fd,ptr->num);
@@ -110,7 +108,7 @@ int main(int argc, char *argv[]){
   if(listen(sockfd,kColaSocket)<0){
     salir("El socket no pudo escuchar\n");
   }
- 
+  usuarios_validos.insert("root");
   //loop que acepta conexiones
   int tam = sizeof(cliente_info);
   while(1){
@@ -120,7 +118,7 @@ int main(int argc, char *argv[]){
       salir("El servidor ha fallado al aceptar conexiones\n");
       pthread_mutex_lock(&mutex_usuarios);
       int sz = users.size();
-      users.push_back(usuario("-1",-1,newsock,sz));
+      users.push_back(usuario("-1","-1",newsock,sz));
       sz = users.size();
       if(pthread_create(&(users[sz-1].id), NULL, hilo,\
                                       (void *) (&users[sz-1]))){
@@ -129,7 +127,7 @@ int main(int argc, char *argv[]){
       pthread_mutex_unlock(&mutex_usuarios);
   
   }
-   
+  
 
   return 0; 
 }

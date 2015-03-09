@@ -20,3 +20,10 @@ int leer_aux(int );
 
 //Funcion encargada de leer un comando enviada por el usuario
 vector<string> leer_comando(int , int );
+
+
+//funcion auxiliar utilizada para terminar un proceso
+void salir(const char *);
+
+
+void escribir_comando(int , char *);

@@ -20,14 +20,15 @@ int leer_aux(int fd){
 }
 
 vector<string> leer_comando(int bytes, int fd){
-  char msj[bytes];
-  char msj1[bytes];
-  char msj2[bytes];
+  char msj[bytes+20];
+  memset(msj,0,sizeof msj);
+  char msj1[bytes+20];
+  char msj2[bytes+20];
   vector<string> ret;
   read(fd,msj,bytes);
   int sz = strlen(msj);
   int ind;
-  for(int ind=0;ind<sz;ind++){
+  for(ind=0;ind<sz;ind++){
     if(msj[ind]==' ') 
       break;
   }
@@ -37,4 +38,25 @@ vector<string> leer_comando(int bytes, int fd){
   ret.push_back(string(msj1));
   ret.push_back(string(msj2));
   return ret;
+}
+
+void salir(const char *mensaje){
+  printf(mensaje);
+  exit(1);
+}
+
+void escribir_comando(int socket, char *mensaje){
+  
+ 
+  char val[5]; 
+  int sz =strlen(mensaje);
+  sprintf(val,"%d",sz);
+  int err=0;
+  err=write(socket,val,4);
+
+  if(err<0)
+    salir("Error al escribir en socket");
+  err = write(socket,mensaje,sz);
+  if(err<0)
+    salir("Error al escribir en socket");
 }

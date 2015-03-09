@@ -21,8 +21,8 @@ const int kMaxComando = 2000;
 char comando[kMaxComando];
 char buffer[kMaxComando];
 
-void ignore_sigpipe(int x){
-    printf("Error por socket, socket desconectado\n");
+void senial_pipe(int x){
+    printf("El socket %d se desconecto\n",x);
     printf("Saliendo\n");
     exit(1);
 }
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
       " [-l<puerto_local>]\n");  
     }
   }
-  signal(SIGPIPE,ignore_sigpipe);
+  
   char *host = argv[2];
   char *puerto;
   char *puerto_local=NULL;
@@ -66,6 +66,10 @@ int main(int argc, char *argv[]){
   struct in_addr addr;
   struct hostent *server;
   int newsock;
+  
+  
+  //nueva funcion para la seniales de los pipes
+  signal(SIGPIPE,senial_pipe);
   
   if (inet_aton(host, &addr))
       server = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
@@ -100,16 +104,14 @@ int main(int argc, char *argv[]){
     fgets(comando,kMaxComando,stdin);
     int sz = strlen(comando);  
     comando[sz-1]='\0';
-    sz--;
-    if(!(strcmp(comando,"salir")))
-      break;    
+    sz--;   
     if(sz!=0){
       escribir_comando(sockfd,comando);
-      
     }
+    if(!(strcmp(comando,"salir")))
+      break; 
       
   }
-  salir("aja");
   
   pthread_join(id,NULL);
 

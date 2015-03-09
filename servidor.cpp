@@ -17,10 +17,12 @@
 using namespace std;
 
 pthread_mutex_t mutex_usuarios = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutes_salas = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_salas = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_bitac = PTHREAD_MUTEX_INITIALIZER;
 
 //cantidad maxima de elementos a esperar en la cola del socket
 const int kColaSocket = 50;
+const int kTamBuf = 5010;
 
 struct usuario{
   string nombre;
@@ -48,12 +50,384 @@ struct sala{
 vector<usuario> users;
 set<sala> rooms;
 set<string> usuarios_validos;
+set<sala>::iterator sit;
+set<string>::iterator user_it;
 
 char *bitacora;
 
 
-void procesar_comando(string &s1, string &s2, int fd, int num_user){
+void broadcast(int sock,string &sal, string &msj,string usr){
+  pthread_mutex_lock(&mutex_usuarios);
+
+  if(sal=="-1") 
+    return;
+
+  string ret=usr+": "+msj;
   
+  char buf[kTamBuf];
+  strcpy(buf,msj.c_str());
+  for(int i=0;i<users.size();i++){
+    if(users[i].sala==sal && users[i].nombre!="-1"){
+      escribir_comando(users[i].fd,buf);
+    }
+  }
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void ver_usuarios_sala(int sock,string &sal){
+  pthread_mutex_lock(&mutex_usuarios);
+  string ret="Usuarios en la sala "+sal+":\n";
+  char buf[kTamBuf];
+  for(int i=0;i<users.size();i++){
+    if(users[i].sala==sal && users[i].nombre!="-1"){
+      ret+= users[i].nombre;
+      ret+="\n";
+    }
+  }
+  strcpy(buf,ret.c_str());
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void ver_usuarios(int sock){
+  pthread_mutex_lock(&mutex_usuarios);
+  string ret="Usuarios validos:\n";
+  char buf[kTamBuf];
+  for(user_it=usuarios_validos.begin();user_it!=usuarios_validos.end();++user_it){
+    ret+= *user_it;
+    ret+="\n";
+  }
+  strcpy(buf,ret.c_str());
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+
+void ver_salas(int sock){
+  pthread_mutex_lock(&mutex_salas);
+  string ret="Salas:\n";
+  char buf[kTamBuf];
+  for(sit=rooms.begin();sit!=rooms.end();++sit){
+    ret+= sit->nombre;
+    if(!(sit->habilitada)){
+      ret+=" no ";
+    }
+    ret+="esta habilitada";
+    ret+="\n";
+  }
+  strcpy(buf,ret.c_str());
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_salas);  
+}
+
+void dejar_sala(int sock, int usr, string &sal){
+  pthread_mutex_lock(&mutex_usuarios);
+  char buf[kTamBuf];
+  users[usr].sala="-1";
+  sal="-1";
+  strcpy(buf,"Has dejado la sala\n");
+  escribir_comando(sock,buf);
+  
+  pthread_mutex_unlock(&mutex_usuarios);
+}
+
+void entrar_en_sala(int sock,string entrar, string &sal){
+  
+  pthread_mutex_lock(&mutex_usuarios);  
+  pthread_mutex_lock(&mutex_salas);
+  sala s(entrar);
+
+  
+  char buf[kTamBuf];
+  
+  if(!rooms.count(s)){
+    strcpy(buf,"Error, sala inexistente\n");
+  }
+  else{
+    sit = rooms.find(s);
+    if(sit->habilitada){
+      sal = entrar;
+      strcpy(buf,"Has entrado en la sala\n");
+    }
+    else{
+      strcpy(buf,"Sala deshabilitada\n");
+    }
+  }
+  
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_usuarios);    
+}
+
+void conexion(int sock, string &name, string &nombre){
+  pthread_mutex_lock(&mutex_usuarios);    
+  char buf[kTamBuf];
+  if(!usuarios_validos.count(name)){
+    strcpy(buf,"Usuario invalido\n");
+  }
+  else{
+    int c =0;
+    for(int i=0;i<users.size();i++){
+      if(users[i].nombre==name){
+        c++;
+      }
+    }
+    if(c){
+      strcpy(buf,"Ya hay un usuario con ese nombre\n");
+    }
+    else{
+      strcpy(buf,"Loggin exitoso\n");
+      nombre=name;
+    }
+  }
+  
+  escribir_comando(sock,buf);  
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void crear_usuario(int sock, string &name, string &nombre){
+  pthread_mutex_lock(&mutex_usuarios);  
+  char buf[kTamBuf];
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(usuarios_validos.count(name)){
+    strcpy(buf,"Ya este usuario existe en el sistema\n");
+  }
+  else{
+    usuarios_validos.insert(name);
+    strcpy(buf,"Usuario creado.\n");
+  }
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void eliminar_usuario(int sock, string &name, string &nombre){
+  pthread_mutex_lock(&mutex_usuarios);  
+  char buf[kTamBuf];
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(!usuarios_validos.count(name)){
+    strcpy(buf,"Este usuario no existe en el sistema\n");
+  }
+  else{
+    usuarios_validos.erase(name);
+    strcpy(buf,"Usuario borrado con exito.\n");
+  }
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void crear_sala(int sock, string &name, string &nombre){
+  pthread_mutex_lock(&mutex_salas);  
+  char buf[kTamBuf];
+  sala s(name);
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(rooms.count(s)){
+    strcpy(buf,"Ya esta sala existe en el sistema\n");
+  }
+  else{
+    rooms.insert(s);
+    strcpy(buf,"Sala creada.\n");
+  }
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_salas);  
+}
+
+void borrar_sala(int sock, string &name, string &nombre){
+  pthread_mutex_lock(&mutex_usuarios);      
+  pthread_mutex_lock(&mutex_salas);
+  char buf[kTamBuf];
+  char buf2[kTamBuf];
+  strcpy(buf2,"La sala a la que pertenecias ha sido eliminada \
+ahora no estas en ninguna sala\n");
+  
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(!rooms.count(name)){
+    strcpy(buf,"Esta sala no existe en el sistema\n");
+  }
+  else{
+    for(int i=0;i<users.size();i++){
+      if(users[i].sala==name){
+        users[i].sala="-1";
+        escribir_comando(users[i].fd,buf2);
+      }
+    }
+    rooms.erase(name);
+    strcpy(buf,"Usuario borrado con exito.\n");
+  }
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_salas);  
+  pthread_mutex_unlock(&mutex_usuarios);        
+}
+
+void ver_usuarios_root(int sock,string name, string nombre){
+  pthread_mutex_lock(&mutex_usuarios);
+  pthread_mutex_lock(&mutex_salas);
+  char buf[kTamBuf];
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else{
+    string ret = "Usuarios en la sala solicitada:\n";
+    for(int i=0;i<users.size();i++){
+        if(users[i].sala==name){
+          if(users[i].nombre!="-1")
+            ret+=users[i].nombre+"\n";
+        }
+    }
+    strcpy(buf,ret.c_str());
+  }
+  
+  escribir_comando(sock,buf);
+  pthread_mutex_lock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void habilitar_sala(int sock,string name, string nombre){
+  pthread_mutex_lock(&mutex_usuarios);
+  pthread_mutex_lock(&mutex_salas);
+  char buf[kTamBuf];
+  sala s(name);
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(!rooms.count(s)){
+    strcpy(buf,"Esta sala no existe en el sistema\n");
+  }
+  else{
+    rooms.erase(s);
+    rooms.insert(s);
+    
+    strcpy(buf,"Sala habilitada.\n");
+  }
+  
+  escribir_comando(sock,buf);
+  pthread_mutex_lock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void deshabilitar_sala(int sock,string name, string nombre){
+  pthread_mutex_lock(&mutex_usuarios);
+  pthread_mutex_lock(&mutex_salas);
+  char buf[kTamBuf];
+  char buf2[kTamBuf];
+  sala s(name);
+  strcpy(buf2,"La sala a la que pertenecia ha sido deshabilitada, ahora\
+  no estas en ninguna sala\n");
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(!rooms.count(s)){
+    strcpy(buf,"Esta sala no existe en el sistema\n");
+  }
+  else{
+    sit = rooms.find(s);
+    rooms.erase(s);
+    s.habilitada=false;
+    rooms.insert(s);
+    for(int i=0;i<users.size();i++){
+      if(users[i].sala==name){
+        users[i].sala="-1";
+        escribir_comando(users[i].fd,buf2);
+      }
+    }
+    
+    strcpy(buf,"Sala habilitada.\n");
+  }
+  
+  escribir_comando(sock,buf);
+  pthread_mutex_lock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void ver_log(int sock, string &nombre){
+  pthread_mutex_lock(&mutex_usuarios);  
+  char buf[10*kTamBuf];
+  if(nombre!="root"){
+    strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else{
+    pthread_mutex_lock(&mutex_bitac);
+    FILE *fp = fopen(bitacora,"r");
+    string ret="";
+    while(fgets(buf,10*kTamBuf,fp)!=NULL){
+      ret+=string(buf);
+    }
+    fclose(fp);
+    strcpy(buf,ret.c_str());
+    
+    pthread_mutex_unlock(&mutex_bitac);
+  }
+  escribir_comando(sock,buf);
+  pthread_mutex_unlock(&mutex_usuarios);  
+}
+
+void procesar_comando(string &s1, string &s2, int fd, int num_user,string &sal,\
+                        string &nombre){
+  char buf[kTamBuf];
+  strcpy(buf,s1.c_str());
+  if(s1=="salir"){
+    pthread_mutex_lock(&mutex_usuarios);
+    escribir_comando(fd,buf);
+    pthread_mutex_unlock(&mutex_usuarios);
+  }
+  else if(s1=="conectarse"){
+    conexion(fd,s2,nombre);
+  }
+  else if(s1=="entrar"){
+    entrar_en_sala(fd,s2,sal);
+  }
+  else if(s1=="dejar"){
+    dejar_sala(fd,num_user,sal);
+  }
+  else if(s1=="ver_salas"){
+    ver_salas(fd);
+  }
+  else if(s1=="ver_usuarios"){
+    if(s2==""){
+      ver_usuarios(fd);
+    }
+    else{
+      ver_usuarios_root(fd,s2,nombre);
+    }
+  }
+  else if(s1=="ver_usu_salas"){
+    ver_usuarios_sala(fd,s2);
+  }
+  else if(s1=="env_mensaje"){
+    broadcast(fd,s2,nombre,sal);
+  }
+  else if(s1=="crear_usu"){
+    crear_usuario(fd,s2,nombre);
+  }
+  else if(s1=="elim_usu"){
+    eliminar_usuario(fd,s2,nombre);
+  }
+  else if(s1=="crear_sala"){
+    crear_sala(fd,s2,nombre);
+  }
+  else if(s1=="elim_sala"){
+    borrar_sala(fd,s2,nombre);
+  }
+  else if(s1=="hab_sala"){
+    habilitar_sala(fd,s2,nombre);
+  }
+  else if(s1=="deshab_sala"){
+    deshabilitar_sala(fd,s2,nombre);  
+  }  
+  else if(s1=="ver_log"){
+    ver_log(fd,nombre);
+  }
+  else{
+    strcpy(buf,"Comando invalido\n");
+    escribir_comando(fd,buf);
+  }
   
 }
 
@@ -65,10 +439,10 @@ void *hilo(void *user){
   while(1){
     int bytes = leer_aux(fd);
     vector<string> leido = leer_comando(bytes,fd);
+    procesar_comando(leido[0],leido[1],fd,ptr->num,ptr->sala,ptr->nombre);
+    
     if(leido[0]=="salir") 
       break;
-    
-    procesar_comando(leido[0],leido[1],fd,ptr->num);
     
   }
   

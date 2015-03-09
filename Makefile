@@ -3,8 +3,8 @@ HEAD = auxiliares.h
 OBJ = cliente.o auxiliares.o
 OBJ2 = auxiliares.o servidor.o
 OPT = -lpthread
-PROG = cliente
-PROG2 = servidor
+PROG = scs_cli
+PROG2 = scs_srv
 
 all: $(PROG) $(PROG2) 
 
@@ -15,10 +15,10 @@ $(PROG): $(HEAD) $(OBJ)
 	$(CC) $(OBJ) -o $(PROG) $(OPT)
 
 cliente.o: $(HEAD) cliente.cpp
-	$(CC) -c cliente.cpp $(OPT)
+	$(CC) $(HEAD) -c cliente.cpp $(OPT)
 	
 servidor.o: $(HEAD) servidor.cpp
-	$(CC) -c servidor.cpp $(OPT)
+	$(CC) $(HEAD) -c servidor.cpp $(OPT)
 	
 auxiliares.o:
 	$(CC) -c auxiliares.cpp $(OPT)

@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 
 using namespace std;
 
@@ -60,6 +61,18 @@ vector<string> leer_comando(int bytes, int fd){
 }
 
 
+/*  Funcion encargada de retornar la hora actual del sistema
+*
+*   @return     un apuntador a char con la hora dada
+*/
+char *getTime(){
+  time_t current_time;
+  char* c_time_string;
+  current_time = time(NULL);
+  c_time_string = ctime(&current_time);
+  return c_time_string;
+}
+
 
 /*Funcion auxiliar utilizada para terminar un proceso
 *
@@ -97,3 +110,5 @@ void escribir_comando(int socket, char *mensaje){
   if(err<0)
     salir("Error al escribir en socket");
 }
+
+

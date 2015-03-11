@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 
 using namespace std;
 
@@ -34,6 +35,12 @@ int leer_aux(int fd);
 */
 vector<string> leer_comando(int bytes, int fd);
 
+
+/*  Funcion encargada de retornar la hora actual del sistema
+*
+*   @return     un apuntador a char con la hora dada
+*/
+char *getTime();
 
 /*Funcion auxiliar utilizada para terminar un proceso
 *

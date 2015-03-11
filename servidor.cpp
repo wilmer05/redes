@@ -87,18 +87,6 @@ string buscar_nombre(int fd){
   return ret;
 }
 
-/*  Funcion encargada de retornar la hora actual del sistema
-*
-*   @return     un apuntador a char con la hora dada
-*/
-char *getTime(){
-  time_t current_time;
-  char* c_time_string;
-  current_time = time(NULL);
-  c_time_string = ctime(&current_time);
-  return c_time_string;
-}
-
 /*  Funcion encargada de buscar el numero en el arreglo de usuarios de un 
 *   usuario que maneja un socket dado
 *

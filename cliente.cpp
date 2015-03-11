@@ -21,15 +21,27 @@ const int kMaxComando = 2000;
 char comando[kMaxComando];
 char buffer[kMaxComando];
 
+
+/* Funcion encargada de manejar la senial SIGPIPE
+*
+*  @param x es el error que dio
+*/
 void senial_pipe(int x){
     printf("El socket se desconecto\n",x);
     printf("Saliendo\n");
     exit(1);
 }
 
+/* Funcion encargada de manejarel hilo de un cliente para la lectura de
+*  los mensajes que le llegan por un socket
+*
+*  @param arg   es un apuntador que luego de un casteo apunta a un entero que es 
+*               el socket por el que se va a leer
+*
+*/
 void *hilo_cliente(void *arg){
   int fd = *((int*)arg);
-  //printf("aqui");
+
   while(1){
     memset(buffer,0,sizeof buffer);
     int bytes = leer_aux(fd);
@@ -44,6 +56,12 @@ void *hilo_cliente(void *arg){
   
 }
 
+
+/* Funcion que se utiliza para manejar los comandos que un cliente manda
+*  
+*  @param arg   es un apuntador que luego de un casteo apunta a un entero que es 
+*               el socket por el que se va a leer
+*/
 void *hilo_comandos(void *arg){
   int sockfd = *((int*)arg);   
   printf("\nIntroduzca un comando: ");
@@ -53,7 +71,7 @@ void *hilo_comandos(void *arg){
     int sz = strlen(comando);  
     comando[sz-1]='\0';
     sz--;   
-   // printf("%d",sockfd);
+
     if(sz!=0){
       escribir_comando(sockfd,comando);
     }
@@ -63,6 +81,15 @@ void *hilo_comandos(void *arg){
   }
 }
 
+
+/*  Funcion principal encargada de realizar la conexion con el servidor
+*   y de iniciar los hilos
+*
+*   @param argc   Cantidad de argumentos que el usuario le paso al programa
+*   @param argv   Argumentos que el usuarios le paso al programa
+*
+*   @return       un numero que indica si el programa termino correctamente
+*/
 int main(int argc, char *argv[]){
 
   if(argc!=5 || strcmp("-d",argv[1]) || strcmp("-p",argv[3]) || !atoi(argv[4])){
@@ -80,9 +107,11 @@ int main(int argc, char *argv[]){
   puerto = argv[4];
   if(argc==7)
     puerto_local = argv[6];
-  //printf("aqui1");
+
   //socket principal
   int sockfd;
+  
+  //estructuras auxiliares para conexion
   struct sockaddr_in dir_server;
   struct in_addr addr;
   struct hostent *server;
@@ -99,8 +128,7 @@ int main(int argc, char *argv[]){
   else
       server = gethostbyname(host);
   
-//  memcpy(&dir_server.sin_addr, server->h_addr_list[0], 
-  //         sizeof(dir_server.sin_addr));
+
   dir_server.sin_port = htons(atoi(puerto));
   
   printf("Realizando conexion...\n");

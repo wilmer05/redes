@@ -1,3 +1,13 @@
+/*
+* Chat con cliente-servidor realizado por:
+*
+* Jonathan Moreno   07-41249
+* Catherine Lollett 09-10451
+* Adriana D'vera    09-11286
+* Wilmer Bandres    10-10055
+*
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -140,11 +150,11 @@ void broadcast(int sock,string sal, string msj,string usr){
   if(sal=="-1") 
     return;
 
-  string ret=usr+": "+msj;
+  string ret=string(getTime())+"--->"+usr+": "+msj;
   
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
-  strcpy(buf,msj.c_str());
+  strcpy(buf,ret.c_str());
 
   for(int i=0;i<users.size();i++){
     if(users[i].sala==sal && users[i].nombre!="-1"){
@@ -235,8 +245,13 @@ void dejar_sala(int sock, int usr){
   pthread_mutex_lock(&mutex_usuarios);
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
-  users[usr].sala="-1";
-  strcpy(buf,"Has dejado la sala\n");
+  if(users[usr].sala=="-1"){
+    strcpy(buf,"No estas en ninguna sala para dejarla.\n");
+  }
+  else{
+    users[usr].sala="-1";
+    strcpy(buf,"Has dejado la sala\n");
+  }
   escribir_comando(sock,buf);
   
   pthread_mutex_unlock(&mutex_usuarios);
@@ -363,6 +378,9 @@ void eliminar_usuario(int sock, string name, string nombre){
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
+  else if(name=="root"){
+    strcpy(buf,"No se puede borrar el usuario root\n");
+  }
   else if(!usuarios_validos.count(name)){
     strcpy(buf,"Este usuario no existe en el sistema\n");
   }
@@ -446,7 +464,7 @@ ahora no estas en ninguna sala\n");
       }
     }
     rooms.erase(s);
-    strcpy(buf,"Usuario borrado con exito.\n");
+    strcpy(buf,"Sala borrada con exito.\n");
   }
   escribir_comando(sock,buf);
   pthread_mutex_unlock(&mutex_salas);  

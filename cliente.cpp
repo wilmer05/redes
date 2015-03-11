@@ -1,3 +1,13 @@
+/*
+* Chat con cliente-servidor realizado por:
+*
+* Jonathan Moreno   07-41249
+* Catherine Lollett 09-10451
+* Adriana D'vera    09-11286
+* Wilmer Bandres    10-10055
+*
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

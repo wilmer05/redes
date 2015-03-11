@@ -13,6 +13,7 @@
 #include <set>
 #include<iostream>
 #include <netdb.h>
+#include <time.h>
 #include "auxiliares.h"
 
 using namespace std;
@@ -121,6 +122,7 @@ void ver_usuarios_sala(int sock,string sal){
       ret+="\n";
     }
   }
+  ret+="\n==================================\n";
   strcpy(buf,ret.c_str());
   escribir_comando(sock,buf);
   pthread_mutex_unlock(&mutex_usuarios);  
@@ -136,6 +138,7 @@ void ver_usuarios(int sock){
     ret+= *user_it;
     ret+="\n";
   }
+  ret+="\n==================================\n";
   strcpy(buf,ret.c_str());
   escribir_comando(sock,buf);
   pthread_mutex_unlock(&mutex_usuarios);  
@@ -155,6 +158,7 @@ void ver_salas(int sock){
     ret+=" esta habilitada";
     ret+="\n";
   }
+  ret+="\n==================================\n";
   strcpy(buf,ret.c_str());
   escribir_comando(sock,buf);
   pthread_mutex_unlock(&mutex_salas);  
@@ -199,7 +203,7 @@ void entrar_en_sala(int sock,string entrar, int usr){
   pthread_mutex_unlock(&mutex_usuarios);    
 }
 
-void conexion(int sock, string &name, int usr){
+void conexion(int sock, string name, int usr){
   pthread_mutex_lock(&mutex_usuarios);    
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
@@ -399,7 +403,7 @@ void deshabilitar_sala(int sock,string name, string nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-void ver_log(int sock, string &nombre){
+void ver_log(int sock, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[10*kTamBuf];
   memset(buf,0,sizeof(buf));
@@ -422,11 +426,28 @@ void ver_log(int sock, string &nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+void escribir_log(int sock, string msj){
+  FILE *fp = fopen(bitacora,"a");
+  fprintf(fp,"%s\n",msj.c_str());
+  fclose(fp);
+}
+
+void escribir_log(int sock, char *msj){
+  FILE *fp = fopen(bitacora,"a");
+  fprintf(fp,"%s\n",msj);
+  fclose(fp);
+}
+
 void procesar_comando(string s1, string s2, int fd){
 
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
   strcpy(buf,s1.c_str());
+  time_t current_time;
+  char* c_time_string;
+  current_time = time(NULL);
+  c_time_string = ctime(&current_time);
+  printf("Tiempo: %s\n",c_time_string);  
   //printf(" %s %s de %s\n",s1.c_str(),s2.c_str(),nombre.c_str());
   cout << s1 << " "<< s2 << " " << fd << endl;
   string nombre,sal;
@@ -528,6 +549,8 @@ int main(int argc, char *argv[]){
   char *puerto;
   puerto = argv[2];
   bitacora = argv[4];
+  FILE *fp = fopen(bitacora,"a");
+  fclose(fp);
   //printf("aqui1");
   //socket principal
   int sockfd;

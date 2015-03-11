@@ -333,7 +333,7 @@ void ver_usuarios_root(int sock,string name, string nombre){
   }
   
   escribir_comando(sock,buf);
-  pthread_mutex_lock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_salas);
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 

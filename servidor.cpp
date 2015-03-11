@@ -659,6 +659,25 @@ void procesar_comando(string s1, string s2, int fd){
   nombre = buscar_nombre(fd);
   sal = buscar_sala(fd);
   int num_user = buscar_num(fd);
+  
+  
+  pthread_mutex_lock(&mutex_usuarios);
+  escribir_log(fd,getTime());
+  escribir_log(fd,"\n---> ");
+  if(nombre!="-1"){
+    escribir_log(fd,"El usuario ");
+    escribir_log(fd,nombre);
+  }
+  else
+    escribir_log(fd,"Un usuario anonimo");
+  escribir_log(fd," ha enviado el comando \"");
+  escribir_log(fd,s1);
+  escribir_log(fd," ");  
+  escribir_log(fd,s2);
+  escribir_log(fd,"\"\n\n");
+  pthread_mutex_unlock(&mutex_usuarios);
+  
+  
   if(s1=="salir"){
     pthread_mutex_lock(&mutex_usuarios);
     escribir_comando(fd,buf);

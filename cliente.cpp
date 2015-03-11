@@ -64,6 +64,7 @@ void *hilo_cliente(void *arg){
 */
 void *hilo_comandos(void *arg){
   int sockfd = *((int*)arg);   
+  printf("Bienvenido al servicio de chat SCS:\n");
   printf("\nIntroduzca un comando: ");
   while(1){
     memset(comando,0,sizeof(comando));

@@ -87,6 +87,17 @@ string buscar_nombre(int fd){
   return ret;
 }
 
+/*  Funcion encargada de retornar la hora actual del sistema
+*
+*   @return     un apuntador a char con la hora dada
+*/
+char *getTime(){
+  time_t current_time;
+  char* c_time_string;
+  current_time = time(NULL);
+  c_time_string = ctime(&current_time);
+  return c_time_string;
+}
 
 /*  Funcion encargada de buscar el numero en el arreglo de usuarios de un 
 *   usuario que maneja un socket dado
@@ -326,7 +337,7 @@ void crear_usuario(int sock, string &name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
-  printf("creando\n" );;
+
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -592,17 +603,7 @@ void ver_log(int sock, string nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-/*  Funcion utilizada para escribir en el log del sistema
-*
-*   @param sock     es el socket que envio la solicitud
-*   @param msj      es el mensaje a escribir en el log es un string  
-*   
-*/
-void escribir_log(int sock, string msj){
-  FILE *fp = fopen(bitacora,"a");
-  fprintf(fp,"%s\n",msj.c_str());
-  fclose(fp);
-}
+
 
 /*  Funcion utilizada para escribir en el log del sistema
 *
@@ -612,8 +613,32 @@ void escribir_log(int sock, string msj){
 */
 void escribir_log(int sock, char *msj){
   FILE *fp = fopen(bitacora,"a");
-  fprintf(fp,"%s\n",msj);
+  fprintf(fp,"%s",msj);
   fclose(fp);
+}
+
+
+
+/*  Funcion utilizada para escribir en el log del sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param msj      es el mensaje a escribir en el log es un const char *
+*   
+*/
+void escribir_log(int sock, const char *msj){
+  FILE *fp = fopen(bitacora,"a");
+  fprintf(fp,"%s",msj);
+  fclose(fp);
+}
+
+/*  Funcion utilizada para escribir en el log del sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param msj      es el mensaje a escribir en el log es un string  
+*   
+*/
+void escribir_log(int sock, string msj){
+  escribir_log(sock,msj.c_str());
 }
 
 /*  Funcion utilizada para procesar las solicitudes de un cliente
@@ -628,11 +653,6 @@ void procesar_comando(string s1, string s2, int fd){
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
   strcpy(buf,s1.c_str());
-  time_t current_time;
-  char* c_time_string;
-  current_time = time(NULL);
-  c_time_string = ctime(&current_time);
-  printf("Tiempo: %s\n",c_time_string);  
 
 //  cout << s1 << " "<< s2 << " " << fd << endl;
   string nombre,sal;
@@ -645,7 +665,6 @@ void procesar_comando(string s1, string s2, int fd){
     users[num_user].nombre="-1";
     users[num_user].sala = "-1";
     pthread_mutex_unlock(&mutex_usuarios);
-    return;
   }
   else if(s1=="conectarse"){
     conexion(fd,s2,num_user);
@@ -698,10 +717,12 @@ void procesar_comando(string s1, string s2, int fd){
     strcpy(buf,"Comando invalido\n");
     escribir_comando(fd,buf);
   }
-  memset(buf,0,sizeof(buf));
-  strcpy(buf,"\nIntroduzca un comando: ");
-  escribir_comando(fd,buf);  
-  printf("Ya\n");
+  if(s1!="salir"){
+    memset(buf,0,sizeof(buf));
+    strcpy(buf,"\nIntroduzca un comando: ");
+    escribir_comando(fd,buf);  
+  }
+  printf("Ok\n");
 }
 
 
@@ -758,7 +779,7 @@ int main(int argc, char *argv[]){
   struct sockaddr_in server_info,cliente_info;
   int newsock;
 
-    
+  printf("Iniciando servidor...\n");    
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0))<0){
     salir("No se ha podido abrir un socket");
   }
@@ -766,11 +787,12 @@ int main(int argc, char *argv[]){
   server_info.sin_family = AF_INET;
   server_info.sin_addr.s_addr = htonl(INADDR_ANY);
   server_info.sin_port = htons(atoi(puerto));
-  
+  printf("Creando socket...\n");    
   if(bind(sockfd,(struct sockaddr *) &server_info,sizeof(server_info))){
     salir("No pudo hacer el link del socket\n");
   }
     
+  printf("Abriendo socket para escuchar conexiones...\n");    
   if(listen(sockfd,kColaSocket)<0){
     salir("El socket no pudo escuchar\n");
   }
@@ -778,6 +800,7 @@ int main(int argc, char *argv[]){
 
   int tam = sizeof(cliente_info);
   
+  printf("Servidor levantado.\n");    
   //loop que acepta conexiones
   while(1){
 

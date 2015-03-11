@@ -264,6 +264,7 @@ void eliminar_usuario(int sock, string &name, string &nombre){
 }
 
 void crear_sala(int sock, string &name, string &nombre){
+  pthread_mutex_lock(&mutex_usuarios);  
   pthread_mutex_lock(&mutex_salas);  
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
@@ -279,7 +280,8 @@ void crear_sala(int sock, string &name, string &nombre){
     strcpy(buf,"Sala creada.\n");
   }
   escribir_comando(sock,buf);
-  pthread_mutex_unlock(&mutex_salas);  
+  pthread_mutex_unlock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_usuarios);      
 }
 
 void borrar_sala(int sock, string &name, string &nombre){
@@ -357,7 +359,7 @@ void habilitar_sala(int sock,string name, string nombre){
   }
   
   escribir_comando(sock,buf);
-  pthread_mutex_lock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_salas);
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
@@ -393,7 +395,7 @@ void deshabilitar_sala(int sock,string name, string nombre){
   }
   
   escribir_comando(sock,buf);
-  pthread_mutex_lock(&mutex_salas);
+  pthread_mutex_unlock(&mutex_salas);
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
@@ -434,8 +436,8 @@ void procesar_comando(string s1, string s2, int fd){
   if(s1=="salir"){
     pthread_mutex_lock(&mutex_usuarios);
     escribir_comando(fd,buf);
-    nombre="-1";
-    sal = "-1";
+    users[num_user].nombre="-1";
+    users[num_user].sala = "-1";
     pthread_mutex_unlock(&mutex_usuarios);
   }
   else if(s1=="conectarse"){

@@ -24,6 +24,8 @@ vector<string> leer_comando(int bytes, int fd){
   memset(msj,0,sizeof msj);
   char msj1[bytes+20];
   char msj2[bytes+20];
+  memset(msj1,0,sizeof msj1);
+  memset(msj2,0,sizeof msj2);
   vector<string> ret;
   read(fd,msj,bytes);
   int sz = strlen(msj);
@@ -49,11 +51,12 @@ void escribir_comando(int socket, char *mensaje){
   
  
   char val[5]; 
+  memset(val,0,sizeof(val));
   int sz =strlen(mensaje);
   sprintf(val,"%d",sz);
   int err=0;
   err=write(socket,val,4);
-
+  //printf("%d\n",err);
   if(err<0)
     salir("Error al escribir en socket");
   err = write(socket,mensaje,sz);

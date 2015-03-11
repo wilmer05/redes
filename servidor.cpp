@@ -65,7 +65,9 @@ void broadcast(int sock,string &sal, string &msj,string usr){
   string ret=usr+": "+msj;
   
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   strcpy(buf,msj.c_str());
+  printf(sal.c_str());
   for(int i=0;i<users.size();i++){
     if(users[i].sala==sal && users[i].nombre!="-1"){
       escribir_comando(users[i].fd,buf);
@@ -78,6 +80,7 @@ void ver_usuarios_sala(int sock,string &sal){
   pthread_mutex_lock(&mutex_usuarios);
   string ret="Usuarios en la sala "+sal+":\n";
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   for(int i=0;i<users.size();i++){
     if(users[i].sala==sal && users[i].nombre!="-1"){
       ret+= users[i].nombre;
@@ -93,6 +96,7 @@ void ver_usuarios(int sock){
   pthread_mutex_lock(&mutex_usuarios);
   string ret="Usuarios validos:\n";
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   for(user_it=usuarios_validos.begin();user_it!=usuarios_validos.end();++user_it){
     ret+= *user_it;
     ret+="\n";
@@ -107,6 +111,7 @@ void ver_salas(int sock){
   pthread_mutex_lock(&mutex_salas);
   string ret="Salas:\n";
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   for(sit=rooms.begin();sit!=rooms.end();++sit){
     ret+= sit->nombre;
     if(!(sit->habilitada)){
@@ -123,6 +128,7 @@ void ver_salas(int sock){
 void dejar_sala(int sock, int usr, string &sal){
   pthread_mutex_lock(&mutex_usuarios);
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   users[usr].sala="-1";
   sal="-1";
   strcpy(buf,"Has dejado la sala\n");
@@ -139,7 +145,7 @@ void entrar_en_sala(int sock,string entrar, string &sal){
 
   
   char buf[kTamBuf];
-  
+  memset(buf,0,sizeof(buf));
   if(!rooms.count(s)){
     strcpy(buf,"Error, sala inexistente\n");
   }
@@ -162,6 +168,7 @@ void entrar_en_sala(int sock,string entrar, string &sal){
 void conexion(int sock, string &name, string &nombre){
   pthread_mutex_lock(&mutex_usuarios);    
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   if(!usuarios_validos.count(name)){
     strcpy(buf,"Usuario invalido\n");
   }
@@ -188,6 +195,8 @@ void conexion(int sock, string &name, string &nombre){
 void crear_usuario(int sock, string &name, string &nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
+  printf("creadndo\n" );;
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -205,6 +214,7 @@ void crear_usuario(int sock, string &name, string &nombre){
 void eliminar_usuario(int sock, string &name, string &nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -222,6 +232,7 @@ void eliminar_usuario(int sock, string &name, string &nombre){
 void crear_sala(int sock, string &name, string &nombre){
   pthread_mutex_lock(&mutex_salas);  
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   sala s(name);
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
@@ -242,6 +253,8 @@ void borrar_sala(int sock, string &name, string &nombre){
   pthread_mutex_lock(&mutex_salas);
   char buf[kTamBuf];
   char buf2[kTamBuf];
+  memset(buf,0,sizeof(buf));
+  memset(buf2,0,sizeof(buf2));
   strcpy(buf2,"La sala a la que pertenecias ha sido eliminada \
 ahora no estas en ninguna sala\n");
   
@@ -270,6 +283,7 @@ void ver_usuarios_root(int sock,string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);
   pthread_mutex_lock(&mutex_salas);
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -293,6 +307,7 @@ void habilitar_sala(int sock,string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);
   pthread_mutex_lock(&mutex_salas);
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   sala s(name);
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
@@ -317,6 +332,8 @@ void deshabilitar_sala(int sock,string name, string nombre){
   pthread_mutex_lock(&mutex_salas);
   char buf[kTamBuf];
   char buf2[kTamBuf];
+  memset(buf,0,sizeof(buf));
+  memset(buf2,0,sizeof(buf2));
   sala s(name);
   strcpy(buf2,"La sala a la que pertenecia ha sido deshabilitada, ahora\
   no estas en ninguna sala\n");
@@ -349,6 +366,7 @@ void deshabilitar_sala(int sock,string name, string nombre){
 void ver_log(int sock, string &nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[10*kTamBuf];
+  memset(buf,0,sizeof(buf));
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -371,10 +389,14 @@ void ver_log(int sock, string &nombre){
 void procesar_comando(string &s1, string &s2, int fd, int num_user,string &sal,\
                         string &nombre){
   char buf[kTamBuf];
+  memset(buf,0,sizeof(buf));
   strcpy(buf,s1.c_str());
+  printf(" %s %s de %s\n",s1.c_str(),s2.c_str(),nombre.c_str());
   if(s1=="salir"){
     pthread_mutex_lock(&mutex_usuarios);
     escribir_comando(fd,buf);
+    nombre="-1";
+    sal = "-1";
     pthread_mutex_unlock(&mutex_usuarios);
   }
   else if(s1=="conectarse"){
@@ -401,7 +423,7 @@ void procesar_comando(string &s1, string &s2, int fd, int num_user,string &sal,\
     ver_usuarios_sala(fd,s2);
   }
   else if(s1=="env_mensaje"){
-    broadcast(fd,s2,nombre,sal);
+    broadcast(fd,sal,s2,nombre);
   }
   else if(s1=="crear_usu"){
     crear_usuario(fd,s2,nombre);
@@ -428,7 +450,7 @@ void procesar_comando(string &s1, string &s2, int fd, int num_user,string &sal,\
     strcpy(buf,"Comando invalido\n");
     escribir_comando(fd,buf);
   }
-  
+  printf("Ya\n");
 }
 
 void *hilo(void *user){
@@ -436,9 +458,11 @@ void *hilo(void *user){
   pthread_t id = ptr->id;
   int fd = ptr->fd; 
   //leo las peticiones del usuario
+  
   while(1){
     int bytes = leer_aux(fd);
     vector<string> leido = leer_comando(bytes,fd);
+    printf("%s",ptr->nombre.c_str());
     procesar_comando(leido[0],leido[1],fd,ptr->num,ptr->sala,ptr->nombre);
     
     if(leido[0]=="salir") 
@@ -473,12 +497,11 @@ int main(int argc, char *argv[]){
   server_info.sin_family = AF_INET;
   server_info.sin_addr.s_addr = htonl(INADDR_ANY);
   server_info.sin_port = htons(atoi(puerto));
-  //printf("aqui1");
+  
   if(bind(sockfd,(struct sockaddr *) &server_info,sizeof(server_info))){
     salir("No pudo hacer el link del socket\n");
   }
     
-//    printf("aqui1");
   if(listen(sockfd,kColaSocket)<0){
     salir("El socket no pudo escuchar\n");
   }
@@ -486,19 +509,23 @@ int main(int argc, char *argv[]){
   //loop que acepta conexiones
   int tam = sizeof(cliente_info);
   while(1){
-//    printf("oyendo");
+  
+   // printf("oyendo por %s\n",puerto);
+
     newsock = accept(sockfd,(struct sockaddr *) &cliente_info,(socklen_t *)&tam);
+
     if(newsock<0)
       salir("El servidor ha fallado al aceptar conexiones\n");
       pthread_mutex_lock(&mutex_usuarios);
       int sz = users.size();
       users.push_back(usuario("-1","-1",newsock,sz));
       sz = users.size();
+      pthread_mutex_unlock(&mutex_usuarios);
       if(pthread_create(&(users[sz-1].id), NULL, hilo,\
                                       (void *) (&users[sz-1]))){
         salir("El servidor no ha podido realizar hilos\n");
       }
-      pthread_mutex_unlock(&mutex_usuarios);
+      
   
   }
   

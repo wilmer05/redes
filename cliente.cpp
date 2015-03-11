@@ -22,7 +22,7 @@ char comando[kMaxComando];
 char buffer[kMaxComando];
 
 void senial_pipe(int x){
-    printf("El socket %d se desconecto\n",x);
+    printf("El socket se desconecto\n",x);
     printf("Saliendo\n");
     exit(1);
 }
@@ -31,6 +31,7 @@ void *hilo_cliente(void *arg){
   int fd = *((int*)arg);
   //printf("aqui");
   while(1){
+    memset(buffer,0,sizeof buffer);
     int bytes = leer_aux(fd);
     read(fd,buffer,bytes);
     if(!(strcmp(buffer,"salir"))){
@@ -70,23 +71,24 @@ int main(int argc, char *argv[]){
   
   //nueva funcion para la seniales de los pipes
   signal(SIGPIPE,senial_pipe);
-  
-  if (inet_aton(host, &addr))
-      server = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
+
+  bzero(&dir_server,sizeof(dir_server));
+  dir_server.sin_family = AF_INET;
+  if (inet_aton(host, &(dir_server.sin_addr)))
+      server = gethostbyaddr((char *) &(dir_server.sin_addr), sizeof(dir_server.sin_addr), AF_INET);
   else
       server = gethostbyname(host);
   
-  memset(&dir_server,0,sizeof(dir_server));
-  
-  memcpy(&dir_server.sin_addr, server->h_addr_list[0], 
-           sizeof(dir_server.sin_addr));
-
+//  memcpy(&dir_server.sin_addr, server->h_addr_list[0], 
+  //         sizeof(dir_server.sin_addr));
   dir_server.sin_port = htons(atoi(puerto));
-    
-  if((sockfd = socket(AF_INET, SOCK_STREAM, 0))<0){
+  
+  printf("Realizando conexion...\n");
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if(sockfd <0){
     salir("No se ha podido abrir un socket");
   }
-  
+
   if (connect(sockfd, (struct sockaddr *) &dir_server,
               sizeof(dir_server)) < 0){
         salir("Ha fallado la conexion con el server.");
@@ -96,15 +98,16 @@ int main(int argc, char *argv[]){
                                       (void *) (& sockfd))){
     salir("No se ha podido realizar hilos\n");
   }
-
+  printf("Conectado\n");
  
   while(1){
    
-    //scanf("%[^\n]\n",comando);
+    memset(comando,0,sizeof(comando));
     fgets(comando,kMaxComando,stdin);
     int sz = strlen(comando);  
     comando[sz-1]='\0';
     sz--;   
+   // printf("%d",sockfd);
     if(sz!=0){
       escribir_comando(sockfd,comando);
     }

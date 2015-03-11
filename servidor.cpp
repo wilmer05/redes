@@ -18,14 +18,19 @@
 
 using namespace std;
 
+
+//Mutex utilizados para la memoria compartida
 pthread_mutex_t mutex_usuarios = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_salas = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_bitac = PTHREAD_MUTEX_INITIALIZER;
 
-//cantidad maxima de elementos a esperar en la cola del socket
+//Cantidad maxima de elementos a esperar en la cola del socket
 const int kColaSocket = 50;
 const int kTamBuf = 5010;
 
+
+//Estructura de usuario donde se tiene toda la informacion correspondiente
+//a un usuario que se conecto
 struct usuario{
   string nombre;
   string sala;
@@ -38,6 +43,8 @@ struct usuario{
   
 };
 
+
+//Estructura de datos encargada de guardar toda la informacion de una sala
 struct sala{
   string nombre;
   bool habilitada;
@@ -49,14 +56,26 @@ struct sala{
   }
 };
 
+
+//vectores y set globales que el servidor maneja para pasar la informacion de un
+//hilo a otro por el que se comunican los usuarios
 vector<usuario> users;
 set<sala> rooms;
 set<string> usuarios_validos;
 set<sala>::iterator sit;
 set<string>::iterator user_it;
 
+
+//apuntador al nombre de la bitacora
 char *bitacora;
 
+
+/*  Funcion encargada de buscar el nombre de usuario que maneja un socket dado
+*
+*   @param fd   es el socket al que le deseamos buscar el usuario manejado
+*   
+*   @return     un string que es el nombre de usuario buscado
+*/
 string buscar_nombre(int fd){
   pthread_mutex_lock(&mutex_usuarios);
   string ret = "";
@@ -68,6 +87,14 @@ string buscar_nombre(int fd){
   return ret;
 }
 
+
+/*  Funcion encargada de buscar el numero en el arreglo de usuarios de un 
+*   usuario que maneja un socket dado
+*
+*   @param fd   es el socket al que le deseamos buscar su numero en el arreglo
+*   
+*   @return     un entero que es su posicion en el arreglo
+*/
 int buscar_num(int fd){
   pthread_mutex_lock(&mutex_usuarios);
   int ret = 0;
@@ -79,6 +106,13 @@ int buscar_num(int fd){
   return ret;
 }
 
+
+/*  Funcion encargada de buscar la sala de un usuario que maneja un socket dado
+*
+*   @param fd   es el socket al que le deseamos buscar la sala manejada
+*   
+*   @return     un string que es la sala del usuario buscado
+*/
 string buscar_sala(int fd){
   pthread_mutex_lock(&mutex_usuarios);
   string ret="";
@@ -91,6 +125,16 @@ string buscar_sala(int fd){
   return ret;
 }
 
+
+/*  Funcion encargada realizar un broadcast a todos los usuarios en una sala 
+*   dada
+*
+*   @param sock   es el socket que desea enviar el mensaje
+*   @param sal  es el nombre de la sala por el que se enviara el broadcast
+*   @param msj  es el mensaje que se desea transmitir
+*   @usr        es el nombre del usuario que enviara el mensaje
+*   
+*/
 void broadcast(int sock,string sal, string msj,string usr){
   pthread_mutex_lock(&mutex_usuarios);
 
@@ -111,6 +155,13 @@ void broadcast(int sock,string sal, string msj,string usr){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+/*  Funcion utilizada para ver los usuarios conectados en una sala
+*
+*   @param sock   es el socket que envio la solicitud
+*   @param sal    es el nombre de la sala que se desea ver que usuarios
+*                 estan conectadasa ella
+*   
+*/
 void ver_usuarios_sala(int sock,string sal){
   pthread_mutex_lock(&mutex_usuarios);
   string ret="Usuarios en la sala "+sal+":\n";
@@ -128,10 +179,15 @@ void ver_usuarios_sala(int sock,string sal){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+/*  Funcion utilizada para ver los usuarios existentes en el sistema
+*
+*   @param sock   es el socket que envio la solicitud
+*   
+*/
 void ver_usuarios(int sock){
 
   pthread_mutex_lock(&mutex_usuarios);
-  string ret="Usuarios validos:\n";
+  string ret="Usuarios validos en el sistema:\n";
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
   for(user_it=usuarios_validos.begin();user_it!=usuarios_validos.end();++user_it){
@@ -145,6 +201,11 @@ void ver_usuarios(int sock){
 }
 
 
+/*  Funcion utilizada para ver las salas existentes en el sistema
+*
+*   @param sock   es el socket que envio la solicitud
+*   
+*/
 void ver_salas(int sock){
   pthread_mutex_lock(&mutex_salas);
   string ret="Salas:\n";
@@ -152,8 +213,9 @@ void ver_salas(int sock){
   memset(buf,0,sizeof(buf));
   for(sit=rooms.begin();sit!=rooms.end();++sit){
     ret+= sit->nombre;
+    ret+=" ----> ";
     if(!(sit->habilitada)){
-      ret+=" no";
+      ret+="no";
     }
     ret+=" esta habilitada";
     ret+="\n";
@@ -164,7 +226,13 @@ void ver_salas(int sock){
   pthread_mutex_unlock(&mutex_salas);  
 }
 
-void dejar_sala(int sock, int usr, string sal){
+/*  Funcion utilizada para que un usuario dado un socket, deje la sala
+*
+*   @param sock   es el socket que envio la solicitud
+*   @param usr    es el numero en el arreglo de usuarios del usuario solicitante
+*   
+*/
+void dejar_sala(int sock, int usr){
   pthread_mutex_lock(&mutex_usuarios);
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
@@ -175,6 +243,13 @@ void dejar_sala(int sock, int usr, string sal){
   pthread_mutex_unlock(&mutex_usuarios);
 }
 
+/*  Funcion utilizada para entrar en una sala dada
+*
+*   @param sock   es el socket que envio la solicitud
+*   @param entrar nombre de la sala a la cual el usuario quiere entrar
+*   @param usr    es el numero en el arreglo de usuarios del usuario solicitante
+*   
+*/
 void entrar_en_sala(int sock,string entrar, int usr){
   
   pthread_mutex_lock(&mutex_usuarios);  
@@ -203,6 +278,14 @@ void entrar_en_sala(int sock,string entrar, int usr){
   pthread_mutex_unlock(&mutex_usuarios);    
 }
 
+
+/*  Funcion utilizada para conectarse con un usuario dado
+*
+*   @param sock   es el socket que envio la solicitud
+*   @param entrar nombre del usuario con el que se desea iniciar sesion
+*   @param usr    es el numero en el arreglo de usuarios del usuario solicitante
+*   
+*/
 void conexion(int sock, string name, int usr){
   pthread_mutex_lock(&mutex_usuarios);    
   char buf[kTamBuf];
@@ -230,6 +313,15 @@ void conexion(int sock, string name, int usr){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+
+/*  Funcion utilizada por el usuario root del sistema para crear un usuario
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param entrar   nombre del usuario a agregar en la sala
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
 void crear_usuario(int sock, string &name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
@@ -249,10 +341,26 @@ void crear_usuario(int sock, string &name, string nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-void eliminar_usuario(int sock, string &name, string &nombre){
+
+/*  Funcion utilizada por el usuario root del sistema para eliminar un usuario
+*           del sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param name     nombre del usuario a borrar
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
+void eliminar_usuario(int sock, string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
+  char buf2[kTamBuf];
+  
   memset(buf,0,sizeof(buf));
+  memset(buf2,0,sizeof(buf2));
+  strcpy(buf2,"El usuario que usted estaba utilizando fue borrado, en este\
+  momento usted esta conectado sin ningun usuario por lo tanto si estaba\
+  en una sala ha sido botado de ella.\n");
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -260,6 +368,14 @@ void eliminar_usuario(int sock, string &name, string &nombre){
     strcpy(buf,"Este usuario no existe en el sistema\n");
   }
   else{
+    for(int i=0;i<users.size();i++){
+      if(users[i].nombre==name){
+        users[i].nombre="-1";
+        users[i].sala="-1";
+        escribir_comando(users[i].fd,buf2);
+      }
+    }
+    rooms.erase(name);
     usuarios_validos.erase(name);
     strcpy(buf,"Usuario borrado con exito.\n");
   }
@@ -267,7 +383,16 @@ void eliminar_usuario(int sock, string &name, string &nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-void crear_sala(int sock, string &name, string &nombre){
+
+/*  Funcion utilizada por el usuario root del sistema crear una sala
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param name     nombre de la sala a crear
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
+void crear_sala(int sock, string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   pthread_mutex_lock(&mutex_salas);  
   char buf[kTamBuf];
@@ -288,20 +413,30 @@ void crear_sala(int sock, string &name, string &nombre){
   pthread_mutex_unlock(&mutex_usuarios);      
 }
 
-void borrar_sala(int sock, string &name, string &nombre){
+/*  Funcion utilizada por el usuario root del sistema para eliminar una sala
+*           del sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param name     nombre de la sala a borrar
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
+void borrar_sala(int sock, string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);      
   pthread_mutex_lock(&mutex_salas);
   char buf[kTamBuf];
   char buf2[kTamBuf];
   memset(buf,0,sizeof(buf));
   memset(buf2,0,sizeof(buf2));
+  sala s(name);
   strcpy(buf2,"La sala a la que pertenecias ha sido eliminada \
 ahora no estas en ninguna sala\n");
   
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
-  else if(!rooms.count(name)){
+  else if(!rooms.count(s)){
     strcpy(buf,"Esta sala no existe en el sistema\n");
   }
   else{
@@ -311,7 +446,7 @@ ahora no estas en ninguna sala\n");
         escribir_comando(users[i].fd,buf2);
       }
     }
-    rooms.erase(name);
+    rooms.erase(s);
     strcpy(buf,"Usuario borrado con exito.\n");
   }
   escribir_comando(sock,buf);
@@ -319,13 +454,26 @@ ahora no estas en ninguna sala\n");
   pthread_mutex_unlock(&mutex_usuarios);        
 }
 
+/*  Funcion utilizada por el usuario root del sistema para ver los usuarios 
+*   conectados a una sala
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param name     nombre de la sala en donde estan los usuarios
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
 void ver_usuarios_root(int sock,string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);
   pthread_mutex_lock(&mutex_salas);
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
+  sala s(name);
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
+  }
+  else if(!rooms.count(s)){
+    strcpy(buf,"Esta sala no existe en el sistema\n");
   }
   else{
     string ret = "Usuarios en la sala solicitada:\n";
@@ -335,6 +483,7 @@ void ver_usuarios_root(int sock,string name, string nombre){
             ret+=users[i].nombre+"\n";
         }
     }
+    ret+="\n=================\n";
     strcpy(buf,ret.c_str());
   }
   
@@ -343,6 +492,16 @@ void ver_usuarios_root(int sock,string name, string nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+
+/*  Funcion utilizada por el usuario root del sistema para habilitar una sala
+*   en el sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param name     nombre de la sala a habilitar
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
 void habilitar_sala(int sock,string name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);
   pthread_mutex_lock(&mutex_salas);
@@ -395,7 +554,7 @@ void deshabilitar_sala(int sock,string name, string nombre){
       }
     }
     
-    strcpy(buf,"Sala habilitada.\n");
+    strcpy(buf,"Sala deshabilitada.\n");
   }
   
   escribir_comando(sock,buf);
@@ -403,6 +562,13 @@ void deshabilitar_sala(int sock,string name, string nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+/*  Funcion utilizada por el usuario root del sistema para ver el log
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param nombre   nombre del usuario que hizo la solicitud o comando, debe
+*                   ser root para utilizar este comando
+*   
+*/
 void ver_log(int sock, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[10*kTamBuf];
@@ -426,18 +592,37 @@ void ver_log(int sock, string nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
+/*  Funcion utilizada para escribir en el log del sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param msj      es el mensaje a escribir en el log es un string  
+*   
+*/
 void escribir_log(int sock, string msj){
   FILE *fp = fopen(bitacora,"a");
   fprintf(fp,"%s\n",msj.c_str());
   fclose(fp);
 }
 
+/*  Funcion utilizada para escribir en el log del sistema
+*
+*   @param sock     es el socket que envio la solicitud
+*   @param msj      es el mensaje a escribir en el log es un char *
+*   
+*/
 void escribir_log(int sock, char *msj){
   FILE *fp = fopen(bitacora,"a");
   fprintf(fp,"%s\n",msj);
   fclose(fp);
 }
 
+/*  Funcion utilizada para procesar las solicitudes de un cliente
+*
+*   @param s1     es el comando hecho por el cliente
+*   @param s2     es el argumento del comando s1   
+*   @param fd     es el socket que envio la solicitud
+*   
+*/
 void procesar_comando(string s1, string s2, int fd){
 
   char buf[kTamBuf];
@@ -448,8 +633,8 @@ void procesar_comando(string s1, string s2, int fd){
   current_time = time(NULL);
   c_time_string = ctime(&current_time);
   printf("Tiempo: %s\n",c_time_string);  
-  //printf(" %s %s de %s\n",s1.c_str(),s2.c_str(),nombre.c_str());
-  cout << s1 << " "<< s2 << " " << fd << endl;
+
+//  cout << s1 << " "<< s2 << " " << fd << endl;
   string nombre,sal;
   nombre = buscar_nombre(fd);
   sal = buscar_sala(fd);
@@ -469,7 +654,7 @@ void procesar_comando(string s1, string s2, int fd){
     entrar_en_sala(fd,s2,num_user);
   }
   else if(s1=="dejar"){
-    dejar_sala(fd,num_user,sal);
+    dejar_sala(fd,num_user);
   }
   else if(s1=="ver_salas"){
     ver_salas(fd);
@@ -519,6 +704,13 @@ void procesar_comando(string s1, string s2, int fd){
   printf("Ya\n");
 }
 
+
+/*  Funcion encargada del hilo de cada usuario y de leer los comandos que el
+*   cliente envia
+*
+*   @param user   es un apuntador que apunta a una estructura usuario
+*   
+*/
 void *hilo(void *user){
   usuario *ptr = (usuario *)user;
   pthread_t id = ptr->id;
@@ -540,6 +732,16 @@ void *hilo(void *user){
 
 }
 
+/*  Funcion principal encargada de abrir el socket que escucha conexiones y 
+*   mantenerse escuchando los usuarios que quieren iniciar una conexion con el
+*   servidor. Tambien se encarga de la creacion de los hilos
+*
+*   @param argc   Cantidad de argumentos que el usuario le paso al programa
+*   @param argv   Argumentos que el usuarios le paso al programa
+*
+*   @return       un numero que indica si el programa termino correctamente
+*   
+*/
 int main(int argc, char *argv[]){
 
   if(argc!=5 || strcmp("-l",argv[1]) || strcmp("-b",argv[3]) || !atoi(argv[2])){
@@ -551,12 +753,11 @@ int main(int argc, char *argv[]){
   bitacora = argv[4];
   FILE *fp = fopen(bitacora,"a");
   fclose(fp);
-  //printf("aqui1");
-  //socket principal
+
   int sockfd;
   struct sockaddr_in server_info,cliente_info;
   int newsock;
-  //printf("aqui1");
+
     
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0))<0){
     salir("No se ha podido abrir un socket");
@@ -574,11 +775,11 @@ int main(int argc, char *argv[]){
     salir("El socket no pudo escuchar\n");
   }
   usuarios_validos.insert("root");
-  //loop que acepta conexiones
+
   int tam = sizeof(cliente_info);
-  while(1){
   
-   // printf("oyendo por %s\n",puerto);
+  //loop que acepta conexiones
+  while(1){
 
     newsock = accept(sockfd,(struct sockaddr *) &cliente_info,(socklen_t *)&tam);
 

@@ -44,6 +44,25 @@ void *hilo_cliente(void *arg){
   
 }
 
+void *hilo_comandos(void *arg){
+  int sockfd = *((int*)arg);   
+  printf("\nIntroduzca un comando: ");
+  while(1){
+    memset(comando,0,sizeof(comando));
+    fgets(comando,kMaxComando,stdin);
+    int sz = strlen(comando);  
+    comando[sz-1]='\0';
+    sz--;   
+   // printf("%d",sockfd);
+    if(sz!=0){
+      escribir_comando(sockfd,comando);
+    }
+    if(!(strcmp(comando,"salir")))
+      break; 
+      
+  }
+}
+
 int main(int argc, char *argv[]){
 
   if(argc!=5 || strcmp("-d",argv[1]) || strcmp("-p",argv[3]) || !atoi(argv[4])){
@@ -94,31 +113,20 @@ int main(int argc, char *argv[]){
               sizeof(dir_server)) < 0){
         salir("Ha fallado la conexion con el server.");
   }  
-  pthread_t id;
+  pthread_t id,id2;
   if(pthread_create(&id, NULL, hilo_cliente,\
                                       (void *) (& sockfd))){
     salir("No se ha podido realizar hilos\n");
   }
   printf("Conectado\n");
  
-  while(1){
-   
-    memset(comando,0,sizeof(comando));
-    fgets(comando,kMaxComando,stdin);
-    int sz = strlen(comando);  
-    comando[sz-1]='\0';
-    sz--;   
-   // printf("%d",sockfd);
-    if(sz!=0){
-      escribir_comando(sockfd,comando);
-    }
-    if(!(strcmp(comando,"salir")))
-      break; 
-      
+  if(pthread_create(&id2, NULL, hilo_comandos,\
+                                      (void *) (& sockfd))){
+    salir("No se ha podido realizar hilos\n");
   }
   
   pthread_join(id,NULL);
-
+  pthread_join(id2,NULL);
 
   return 0; 
 }

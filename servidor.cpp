@@ -439,6 +439,7 @@ void procesar_comando(string s1, string s2, int fd){
     users[num_user].nombre="-1";
     users[num_user].sala = "-1";
     pthread_mutex_unlock(&mutex_usuarios);
+    return;
   }
   else if(s1=="conectarse"){
     conexion(fd,s2,num_user);
@@ -491,6 +492,9 @@ void procesar_comando(string s1, string s2, int fd){
     strcpy(buf,"Comando invalido\n");
     escribir_comando(fd,buf);
   }
+  memset(buf,0,sizeof(buf));
+  strcpy(buf,"\nIntroduzca un comando: ");
+  escribir_comando(fd,buf);  
   printf("Ya\n");
 }
 

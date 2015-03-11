@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <set>
+#include<iostream>
 #include <netdb.h>
 #include "auxiliares.h"
 
@@ -55,8 +56,41 @@ set<string>::iterator user_it;
 
 char *bitacora;
 
+string buscar_nombre(int fd){
+  pthread_mutex_lock(&mutex_usuarios);
+  string ret = "";
+  for(int i=0;i<users.size();i++){
+    if(users[i].fd == fd)
+      ret = users[i].nombre;
+  }
+  pthread_mutex_unlock(&mutex_usuarios);
+  return ret;
+}
 
-void broadcast(int sock,string &sal, string &msj,string usr){
+int buscar_num(int fd){
+  pthread_mutex_lock(&mutex_usuarios);
+  int ret = 0;
+  for(int i=0;i<users.size();i++){
+    if(users[i].fd == fd)
+      ret = users[i].num;
+  }
+  pthread_mutex_unlock(&mutex_usuarios);
+  return ret;
+}
+
+string buscar_sala(int fd){
+  pthread_mutex_lock(&mutex_usuarios);
+  string ret="";
+  for(int i=0;i<users.size();i++){
+    if(users[i].fd == fd){
+      ret=users[i].sala;
+    }
+  }
+  pthread_mutex_unlock(&mutex_usuarios);
+  return ret;
+}
+
+void broadcast(int sock,string sal, string msj,string usr){
   pthread_mutex_lock(&mutex_usuarios);
 
   if(sal=="-1") 
@@ -76,7 +110,7 @@ void broadcast(int sock,string &sal, string &msj,string usr){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-void ver_usuarios_sala(int sock,string &sal){
+void ver_usuarios_sala(int sock,string sal){
   pthread_mutex_lock(&mutex_usuarios);
   string ret="Usuarios en la sala "+sal+":\n";
   char buf[kTamBuf];
@@ -93,6 +127,7 @@ void ver_usuarios_sala(int sock,string &sal){
 }
 
 void ver_usuarios(int sock){
+
   pthread_mutex_lock(&mutex_usuarios);
   string ret="Usuarios validos:\n";
   char buf[kTamBuf];
@@ -115,9 +150,9 @@ void ver_salas(int sock){
   for(sit=rooms.begin();sit!=rooms.end();++sit){
     ret+= sit->nombre;
     if(!(sit->habilitada)){
-      ret+=" no ";
+      ret+=" no";
     }
-    ret+="esta habilitada";
+    ret+=" esta habilitada";
     ret+="\n";
   }
   strcpy(buf,ret.c_str());
@@ -125,19 +160,18 @@ void ver_salas(int sock){
   pthread_mutex_unlock(&mutex_salas);  
 }
 
-void dejar_sala(int sock, int usr, string &sal){
+void dejar_sala(int sock, int usr, string sal){
   pthread_mutex_lock(&mutex_usuarios);
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
   users[usr].sala="-1";
-  sal="-1";
   strcpy(buf,"Has dejado la sala\n");
   escribir_comando(sock,buf);
   
   pthread_mutex_unlock(&mutex_usuarios);
 }
 
-void entrar_en_sala(int sock,string entrar, string &sal){
+void entrar_en_sala(int sock,string entrar, int usr){
   
   pthread_mutex_lock(&mutex_usuarios);  
   pthread_mutex_lock(&mutex_salas);
@@ -152,7 +186,7 @@ void entrar_en_sala(int sock,string entrar, string &sal){
   else{
     sit = rooms.find(s);
     if(sit->habilitada){
-      sal = entrar;
+      users[usr].sala=entrar;
       strcpy(buf,"Has entrado en la sala\n");
     }
     else{
@@ -165,7 +199,7 @@ void entrar_en_sala(int sock,string entrar, string &sal){
   pthread_mutex_unlock(&mutex_usuarios);    
 }
 
-void conexion(int sock, string &name, string &nombre){
+void conexion(int sock, string &name, int usr){
   pthread_mutex_lock(&mutex_usuarios);    
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
@@ -184,7 +218,7 @@ void conexion(int sock, string &name, string &nombre){
     }
     else{
       strcpy(buf,"Loggin exitoso\n");
-      nombre=name;
+      users[usr].nombre=name;
     }
   }
   
@@ -196,7 +230,7 @@ void crear_usuario(int sock, string &name, string &nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
-  printf("creadndo\n" );;
+  printf("creando\n" );;
   if(nombre!="root"){
     strcpy(buf,"Debe ser usuario root para ejecutar este comando\n");
   }
@@ -386,12 +420,17 @@ void ver_log(int sock, string &nombre){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-void procesar_comando(string &s1, string &s2, int fd, int num_user,string &sal,\
-                        string &nombre){
+void procesar_comando(string s1, string s2, int fd){
+
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
   strcpy(buf,s1.c_str());
-  printf(" %s %s de %s\n",s1.c_str(),s2.c_str(),nombre.c_str());
+  //printf(" %s %s de %s\n",s1.c_str(),s2.c_str(),nombre.c_str());
+  cout << s1 << " "<< s2 << " " << fd << endl;
+  string nombre,sal;
+  nombre = buscar_nombre(fd);
+  sal = buscar_sala(fd);
+  int num_user = buscar_num(fd);
   if(s1=="salir"){
     pthread_mutex_lock(&mutex_usuarios);
     escribir_comando(fd,buf);
@@ -400,10 +439,10 @@ void procesar_comando(string &s1, string &s2, int fd, int num_user,string &sal,\
     pthread_mutex_unlock(&mutex_usuarios);
   }
   else if(s1=="conectarse"){
-    conexion(fd,s2,nombre);
+    conexion(fd,s2,num_user);
   }
   else if(s1=="entrar"){
-    entrar_en_sala(fd,s2,sal);
+    entrar_en_sala(fd,s2,num_user);
   }
   else if(s1=="dejar"){
     dejar_sala(fd,num_user,sal);
@@ -462,8 +501,8 @@ void *hilo(void *user){
   while(1){
     int bytes = leer_aux(fd);
     vector<string> leido = leer_comando(bytes,fd);
-    printf("%s",ptr->nombre.c_str());
-    procesar_comando(leido[0],leido[1],fd,ptr->num,ptr->sala,ptr->nombre);
+
+    procesar_comando(leido[0],leido[1],fd);
     
     if(leido[0]=="salir") 
       break;

@@ -157,7 +157,7 @@ void broadcast(int sock,string sal, string msj,string usr){
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
   strcpy(buf,msj.c_str());
-  printf(sal.c_str());
+
   for(int i=0;i<users.size();i++){
     if(users[i].sala==sal && users[i].nombre!="-1"){
       escribir_comando(users[i].fd,buf);
@@ -690,6 +690,7 @@ void procesar_comando(string s1, string s2, int fd){
     ver_usuarios_sala(fd,s2);
   }
   else if(s1=="env_mensaje"){
+    s2+="\n";
     broadcast(fd,sal,s2,nombre);
   }
   else if(s1=="crear_usu"){

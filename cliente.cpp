@@ -38,6 +38,7 @@ void *hilo_cliente(void *arg){
       printf("Hasta luego\n");
       break;
     }
+    printf("\n");
     printf(buffer);
   }
   

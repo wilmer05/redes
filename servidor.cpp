@@ -226,7 +226,7 @@ void conexion(int sock, string &name, int usr){
   pthread_mutex_unlock(&mutex_usuarios);  
 }
 
-void crear_usuario(int sock, string &name, string &nombre){
+void crear_usuario(int sock, string &name, string nombre){
   pthread_mutex_lock(&mutex_usuarios);  
   char buf[kTamBuf];
   memset(buf,0,sizeof(buf));
